@@ -1,29 +1,27 @@
 use crate::dom;
-use std::vec::Vec;
+use crate::parser;
 
 pub struct Parser {
-    input: String,
-    pos: usize,
+    parser: parser::Parser,
 }
 
 impl Parser {
-    fn new(input: &str) -> Self {
+    pub fn new(input: &str) -> Self {
         return Self {
-            input: String::from(input),
-            pos: 0,
+            parser: parser::Parser::new(input),
         };
     }
 
-    fn parse(input: &str) -> dom::Nodes {
+    pub fn parse(input: &str) -> dom::Nodes {
         let mut parser = Self::new(input);
 
         return parser.parse_nodes();
     }
 
-    fn parse_nodes(&mut self) -> dom::Nodes {
-        let mut result = Vec::new();
+    pub fn parse_nodes(&mut self) -> dom::Nodes {
+        let mut result = dom::Nodes::new();
 
-        while !self.eof() && !self.starts_with("</") {
+        while !self.parser.eof() && !self.parser.starts_with("</") {
             result.push(self.parse_node());
         }
 
@@ -31,7 +29,7 @@ impl Parser {
     }
 
     fn parse_node(&mut self) -> dom::Node {
-        if self.next_char() == '<' {
+        if self.parser.next_char() == '<' {
             return self.parse_element();
         }
 
@@ -40,44 +38,45 @@ impl Parser {
 
     fn parse_element(&mut self) -> dom::Node {
         // Opening tag
-        assert!(self.next_char() == '<');
-        self.consume_char();
-        let opening_tag =
-            self.consume_while(&|next_char| next_char != '>' && !next_char.is_whitespace());
+        assert!(self.parser.next_char() == '<');
+        self.parser.consume_char();
+        let opening_tag = self
+            .parser
+            .consume_while(&|next_char| next_char != '>' && !next_char.is_whitespace());
 
         // Attributes
         let mut attrs = dom::AttrMap::new();
 
-        self.consume_whitespace();
+        self.parser.consume_whitespace();
 
-        while self.next_char() != '>' && !self.starts_with("/>") {
+        while self.parser.next_char() != '>' && !self.parser.starts_with("/>") {
             let (name, value) = self.parse_attribute();
             attrs.insert(name, value);
 
-            self.consume_whitespace();
+            self.parser.consume_whitespace();
         }
 
-        println!("{}", self.next_char());
+        println!("{}", self.parser.next_char());
 
         // Void element
-        if self.starts_with("/>") {
+        if self.parser.starts_with("/>") {
             return dom::element(&opening_tag, dom::Nodes::new(), attrs);
         }
 
-        assert!(self.next_char() == '>');
-        self.consume_char();
+        assert!(self.parser.next_char() == '>');
+        self.parser.consume_char();
 
         // Child nodes
         let children = self.parse_nodes();
 
         // Closing tag
-        assert!(self.next_char() == '<');
-        self.consume_char();
-        assert!(self.next_char() == '/');
-        self.consume_char();
-        let closing_tag = self.consume_while(&|next_char| next_char != '>');
-        assert!(self.next_char() == '>');
-        self.consume_char();
+        assert!(self.parser.next_char() == '<');
+        self.parser.consume_char();
+        assert!(self.parser.next_char() == '/');
+        self.parser.consume_char();
+        let closing_tag = self.parser.consume_while(&|next_char| next_char != '>');
+        assert!(self.parser.next_char() == '>');
+        self.parser.consume_char();
 
         assert!(opening_tag == closing_tag);
 
@@ -85,67 +84,29 @@ impl Parser {
     }
 
     fn parse_attribute(&mut self) -> (String, String) {
-        assert!(self.next_char().is_alphabetic());
+        assert!(self.parser.next_char().is_alphabetic());
 
-        let name = self.consume_while(&|next_char| next_char != '=');
+        let name = self.parser.consume_while(&|next_char| next_char != '=');
 
-        assert!(self.next_char() == '=');
-        self.consume_char();
-        assert!(self.next_char() == '"');
-        self.consume_char();
+        assert!(self.parser.next_char() == '=');
+        self.parser.consume_char();
+        assert!(self.parser.next_char() == '"');
+        self.parser.consume_char();
 
-        let value = self.consume_while(&|next_char| next_char != '"');
+        let value = self.parser.consume_while(&|next_char| next_char != '"');
 
-        assert!(self.next_char() == '"');
-        self.consume_char();
+        assert!(self.parser.next_char() == '"');
+        self.parser.consume_char();
 
         return (name, value);
     }
 
     fn parse_text(&mut self) -> dom::Node {
-        assert!(self.next_char() != '<');
+        assert!(self.parser.next_char() != '<');
 
-        let text = self.consume_while(&|next_char| next_char != '<');
+        let text = self.parser.consume_while(&|next_char| next_char != '<');
 
         return dom::text(&text);
-    }
-
-    fn consume_whitespace(&mut self) -> String {
-        return self.consume_while(&|next_char| next_char.is_whitespace());
-    }
-
-    fn consume_while(&mut self, cond: &dyn Fn(char) -> bool) -> String {
-        let mut result = String::new();
-
-        while !self.eof() && cond(self.next_char()) {
-            result.push(self.consume_char());
-        }
-
-        return result;
-    }
-
-    fn consume_char(&mut self) -> char {
-        let current_char = self.input[self.pos..].chars().next().unwrap();
-
-        self.pos += 1;
-
-        while !self.input.is_char_boundary(self.pos) {
-            self.pos += 1;
-        }
-
-        return current_char;
-    }
-
-    fn next_char(&self) -> char {
-        return self.input[self.pos..].chars().next().unwrap();
-    }
-
-    fn starts_with(&self, prefix: &str) -> bool {
-        return self.input[self.pos..].starts_with(prefix);
-    }
-
-    fn eof(&self) -> bool {
-        return self.pos >= self.input.len();
     }
 }
 
@@ -165,14 +126,14 @@ mod tests {
     #[test]
     fn test_parser_parse_nodes() {
         let mut parser = Parser::new("<html>Hello World!<p>Lorem ipsum</p></html>");
-        parser.pos = 6;
+        parser.parser.set_pos(6);
 
         let nodes = parser.parse_nodes();
         assert!(nodes.len() == 2);
         assert!(nodes[0] == dom::text("Hello World!"));
         assert!(nodes[1] == dom::element("p", vec![dom::text("Lorem ipsum")], dom::AttrMap::new()));
 
-        assert!(parser.pos == 36); // before the closing html tag
+        assert!(parser.parser.pos() == 36); // before the closing html tag
     }
 
     #[test]
@@ -242,69 +203,5 @@ mod tests {
 
         let node = parser.parse_text();
         assert!(node == dom::text("Hello "));
-    }
-
-    #[test]
-    fn test_parser_consume_whitespace() {
-        let mut parser = Parser::new("   Hello World!");
-
-        let result = parser.consume_whitespace();
-        assert!(result == "   ");
-    }
-
-    #[test]
-    fn test_parser_consume_while() {
-        let mut parser = Parser::new("Hello World");
-
-        let result = parser.consume_while(&|next_char| next_char != ' ');
-        assert!(result == "Hello");
-
-        parser.consume_char();
-
-        // handles EOF
-        let result = parser.consume_while(&|next_char| next_char != ' ');
-        assert!(result == "World");
-    }
-
-    #[test]
-    fn test_parser_consume_char() {
-        let mut parser = Parser::new("aä");
-
-        let result = parser.consume_char();
-
-        assert!(result == 'a');
-        assert!(parser.pos == 1);
-
-        let result = parser.consume_char();
-
-        // handles multi-byte characters
-        assert!(result == 'ä');
-        assert!(parser.pos == 3);
-    }
-
-    #[test]
-    fn test_parser_next_char() {
-        let mut parser = Parser::new("<html></html>");
-
-        assert!(parser.next_char() == '<');
-        parser.consume_char();
-        assert!(parser.next_char() == 'h');
-    }
-
-    #[test]
-    fn test_parser_starts_with() {
-        let parser = Parser::new("<html></html>");
-
-        assert!(parser.starts_with("<") == true);
-        assert!(parser.starts_with("</") == false);
-    }
-
-    #[test]
-    fn test_parser_eof() {
-        let mut parser = Parser::new("<html></html>");
-        assert!(parser.eof() == false);
-
-        parser.pos = 13;
-        assert!(parser.eof() == true);
     }
 }
