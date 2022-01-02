@@ -13,7 +13,7 @@ pub fn element(name: &str, children: Vec<Node>, attrs: AttrMap) -> Node {
     });
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum Node {
     Text(String),
     Element(Element),
@@ -35,7 +35,7 @@ impl Node {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Element {
     pub name: String,
     pub children: Vec<Node>,
