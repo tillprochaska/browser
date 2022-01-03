@@ -36,20 +36,48 @@ pub struct RenderNode {
 
 pub type RenderNodes = Vec<RenderNode>;
 
+struct MatchedRuleset<'a> {
+    selector: &'a cssom::Selector,
+    declarations: &'a cssom::Declarations,
+}
+
+impl<'a> MatchedRuleset<'a> {
+    pub fn new(selector: &'a cssom::Selector, declarations: &'a cssom::Declarations) -> Self {
+        return Self {
+            selector: selector,
+            declarations: declarations,
+        };
+    }
+}
+
 fn declarations_for_element(
     element: &dom::Element,
     rulesets: &cssom::Rulesets,
 ) -> cssom::Declarations {
-    let matching_rulesets = rulesets.iter().filter(|ruleset| {
-        return ruleset
-            .selectors
-            .iter()
-            .any(&|selector: &cssom::Selector| element_matches_selector(element, selector));
+    let mut matches = Vec::new();
+
+    // Find matching rulesets and expand rulesets with multiple,
+    // comma-separated selectors
+    for ruleset in rulesets {
+        for selector in &ruleset.selectors {
+            if !element_matches_selector(element, selector) {
+                continue;
+            }
+
+            let matched_ruleset = MatchedRuleset::new(&selector, &ruleset.declarations);
+            matches.push(matched_ruleset);
+        }
+    }
+
+    // Sort matching rulesets by selector specificity
+    matches.sort_by(|a, b| {
+        return a.selector.specificity().cmp(&b.selector.specificity());
     });
 
+    // Merge declarations from all matching rulesets
     let mut declarations = cssom::Declarations::new();
 
-    for ruleset in matching_rulesets {
+    for ruleset in matches {
         for (property, value) in ruleset.declarations.iter() {
             declarations.insert(String::from(property), String::from(value));
         }
@@ -98,7 +126,7 @@ mod tests {
     use crate::html;
 
     #[test]
-    fn test_declarations_for_node() {
+    fn test_render_tree_from() {
         let nodes = html::Parser::parse("<h1>Hello World!</h1><p>Lorem ipsum</p>");
         let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #333; } h1 { color: #000; } p { line-height: 1.5; }");
 
@@ -116,6 +144,37 @@ mod tests {
         assert!(p.declarations["font-family"] == "sans-serif");
         assert!(p.declarations["color"] == "#333");
         assert!(p.declarations["line-height"] == "1.5");
+    }
+
+    #[test]
+    fn test_declarations_for_element() {
+        let element = &dom::Element::new("p");
+        let rulesets = &css::Parser::parse("h1 { color: red; } p { color: #333; }");
+        let declarations = declarations_for_element(element, rulesets);
+
+        assert!(declarations.len() == 1);
+        assert!(declarations["color"] == "#333");
+    }
+
+    #[test]
+    fn test_declarations_for_element_specificity() {
+        let element = &dom::Element::new("p").attr("id", "foo");
+        let css = "p#foo { color: green; } #foo { color: red; } p { color: pink; }";
+        let rulesets = &css::Parser::parse(css);
+        let declarations = declarations_for_element(element, rulesets);
+
+        assert!(declarations.len() == 1);
+        assert!(declarations["color"] == "green");
+    }
+
+    #[test]
+    fn test_declarations_for_element_multiple_selectors() {
+        let element = &dom::Element::new("p").attr("class", "foo");
+        let rulesets = &css::Parser::parse(".foo { color: green; } p, #bar { color: red; }");
+        let declarations = declarations_for_element(element, rulesets);
+
+        assert!(declarations.len() == 1);
+        assert!(declarations["color"] == "red");
     }
 
     #[test]
