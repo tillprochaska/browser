@@ -5,12 +5,10 @@ pub fn text(text: &str) -> Node {
     return Node::Text(String::from(text));
 }
 
-pub fn element(tag: &str, children: Vec<Node>, attrs: AttrMap) -> Node {
-    return Node::Element(Element {
-        tag: String::from(tag),
-        children: children,
-        attrs: attrs,
-    });
+pub fn element(tag: &str, children: Nodes, attrs: AttrMap) -> Node {
+    let element = Element::new(tag).children(children).attrs(attrs);
+
+    return Node::Element(element);
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -43,12 +41,44 @@ pub struct Element {
 }
 
 impl Element {
-    pub fn tag(tag: &str) -> Self {
+    pub fn new(tag: &str) -> Self {
         return Element {
             tag: String::from(tag),
             children: Nodes::new(),
             attrs: AttrMap::new(),
         };
+    }
+
+    pub fn children(mut self, children: Nodes) -> Self {
+        self.children = children;
+
+        return self;
+    }
+
+    pub fn attrs(mut self, attrs: AttrMap) -> Self {
+        self.attrs = attrs;
+
+        return self;
+    }
+
+    pub fn attr(mut self, name: &str, value: &str) -> Self {
+        self.attrs.insert(String::from(name), String::from(value));
+
+        return self;
+    }
+
+    pub fn class_list(&self) -> Vec<String> {
+        if !self.attrs.contains_key("class") {
+            return Vec::new();
+        }
+
+        return self
+            .attrs
+            .get("class")
+            .unwrap()
+            .split(&|c: char| c.is_whitespace())
+            .map(&|class| String::from(class))
+            .collect();
     }
 }
 

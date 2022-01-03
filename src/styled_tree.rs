@@ -41,7 +41,6 @@ fn declarations_for_element(
     rulesets: &cssom::Rulesets,
 ) -> cssom::Declarations {
     let matching_rulesets = rulesets.iter().filter(|ruleset| {
-        // For now, we implement selectors consisting of a single tag name only
         return ruleset
             .selectors
             .iter()
@@ -64,6 +63,29 @@ fn element_matches_selector(element: &dom::Element, selector: &cssom::Selector) 
         if *tag != element.tag {
             return false;
         }
+    }
+
+    if let (Some(selector_id), Some(attr_id)) = (&selector.id, element.attrs.get("id")) {
+        if selector_id != attr_id {
+            return false;
+        }
+    }
+
+    for class in &selector.classes {
+        if !element.class_list().contains(&class) {
+            println!("{}", class);
+            return false;
+        }
+    }
+
+    for (name, value) in &selector.attrs {
+        if let Some(element_attr) = element.attrs.get(name) {
+            if element_attr == value {
+                continue;
+            }
+        }
+
+        return false;
     }
 
     return true;
@@ -99,10 +121,50 @@ mod tests {
     #[test]
     fn test_element_matches_selector_tag() {
         let selector = &cssom::Selector::new().tag("p");
-        let p = &dom::Element::tag("p");
-        let div = &dom::Element::tag("div");
+        let p = &dom::Element::new("p");
+        let div = &dom::Element::new("div");
 
         assert!(element_matches_selector(p, selector) == true);
         assert!(element_matches_selector(div, selector) == false);
+    }
+
+    #[test]
+    fn test_element_matches_selector_classes() {
+        let selector = &cssom::Selector::new().class("foo").class("bar");
+
+        let element = &dom::Element::new("div").attr("class", "foo bar baz");
+        assert!(element_matches_selector(element, selector) == true);
+
+        let element = &dom::Element::new("div").attr("class", "foo baz");
+        assert!(element_matches_selector(element, selector) == false);
+    }
+
+    #[test]
+    fn test_element_matches_selector_id() {
+        let selector = &cssom::Selector::new().id("foo");
+
+        let element = &dom::Element::new("div").attr("id", "foo");
+        assert!(element_matches_selector(element, selector) == true);
+
+        let element = &dom::Element::new("div").attr("id", "bar");
+        assert!(element_matches_selector(element, selector) == false);
+    }
+
+    #[test]
+    fn test_element_matches_selector_attrs() {
+        let selector = &cssom::Selector::new().attr("foo", "bar").attr("bar", "baz");
+
+        let element = &dom::Element::new("div")
+            .attr("foo", "bar")
+            .attr("bar", "baz")
+            .attr("lorem", "ipsum");
+
+        assert!(element_matches_selector(element, selector) == true);
+
+        let element = &dom::Element::new("div")
+            .attr("bar", "baz")
+            .attr("lorem", "ipsum");
+
+        assert!(element_matches_selector(element, selector) == false);
     }
 }

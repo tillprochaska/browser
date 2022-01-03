@@ -15,7 +15,7 @@ impl Ruleset {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Selector {
     pub tag: Option<String>,
     pub id: Option<String>,

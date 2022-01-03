@@ -72,13 +72,10 @@ impl Parser {
     }
 
     fn parse_selectors(&mut self) -> cssom::Selectors {
-        assert!(self.parser.next_char().is_alphabetic());
-
         let mut selectors = cssom::Selectors::new();
 
         while self.parser.next_char() != '{' {
             selectors.push(self.parse_selector());
-
             self.parser.consume_whitespace();
 
             if self.parser.next_char() == ',' {
@@ -91,11 +88,70 @@ impl Parser {
     }
 
     fn parse_selector(&mut self) -> cssom::Selector {
-        let text = self.parser.consume_while(&|next_char| {
-            return next_char != ',' && next_char != '{';
-        });
+        let mut selector = cssom::Selector::new();
+        let tag = self.consume_identifier();
 
-        return cssom::Selector::new().tag(&text.trim());
+        if tag.len() > 0 {
+            selector = selector.tag(&tag);
+        }
+
+        while !self.parser.eof() && self.parser.next_char() != ',' && self.parser.next_char() != '{'
+        {
+            match self.parser.next_char() {
+                '.' => {
+                    self.parser.consume_char();
+                    selector = selector.class(&self.consume_identifier());
+                }
+
+                '#' => {
+                    self.parser.consume_char();
+                    selector = selector.id(&self.consume_identifier());
+                }
+
+                '[' => {
+                    self.parser.consume_char();
+                    self.parser.consume_whitespace();
+
+                    let name = self.parser.consume_while(&|next_char| {
+                        return next_char != '=' && !next_char.is_whitespace();
+                    });
+
+                    self.parser.consume_whitespace();
+                    assert!(self.parser.next_char() == '=');
+                    self.parser.consume_char();
+                    self.parser.consume_whitespace();
+                    assert!(self.parser.next_char() == '"');
+                    self.parser.consume_char();
+
+                    let value = self.parser.consume_while(&|next_char| next_char != '"');
+
+                    self.parser.consume_char();
+                    self.parser.consume_whitespace();
+                    println!("{}", self.parser.next_char());
+                    assert!(self.parser.next_char() == ']');
+                    self.parser.consume_char();
+
+                    selector = selector.attr(&name, &value);
+                }
+
+                _ if self.parser.next_char().is_whitespace() => {
+                    self.parser.consume_whitespace();
+                    assert!(self.parser.next_char() == ',' || self.parser.next_char() == '{');
+                }
+
+                _ => assert!(false),
+            }
+        }
+
+        return selector;
+    }
+
+    fn consume_identifier(&mut self) -> String {
+        return self.parser.consume_while(&|next_char| {
+            // This isn’t spec-compliant, as identifiers must start with an
+            // alphabetic char -- we’ll ignore that for now.
+            return next_char.is_alphanumeric() || next_char == '-' || next_char == '_';
+        });
     }
 }
 
@@ -174,5 +230,54 @@ mod tests {
         let selector = parser.parse_selector();
 
         assert!(selector == cssom::Selector::new().tag("ul"));
+    }
+
+    #[test]
+    fn test_parser_parse_selector_class() {
+        let mut parser = Parser::new("p.class1.class2 { color: #333; }");
+        let selector = parser.parse_selector();
+        let expected = cssom::Selector::new()
+            .tag("p")
+            .class("class1")
+            .class("class2");
+
+        assert!(selector == expected);
+
+        let mut parser = Parser::new(".class-1.class_2 { color: #333; }");
+        let selector = parser.parse_selector();
+        let expected = cssom::Selector::new().class("class-1").class("class_2");
+
+        assert!(selector == expected);
+    }
+
+    #[test]
+    fn test_parser_parse_selector_id() {
+        let mut parser = Parser::new("p#intro { font-weight: italic; }");
+        let selector = parser.parse_selector();
+        let expected = cssom::Selector::new().tag("p").id("intro");
+
+        assert!(selector == expected);
+
+        let mut parser = Parser::new("#intro { font-weight: italic; }");
+        let selector = parser.parse_selector();
+        let expected = cssom::Selector::new().id("intro");
+
+        assert!(selector == expected);
+    }
+
+    #[test]
+    fn test_parser_parse_selector_attrs() {
+        let mut parser = Parser::new("button[aria-expanded=\"true\"]");
+        let selector = parser.parse_selector();
+        let expected = cssom::Selector::new()
+            .tag("button")
+            .attr("aria-expanded", "true");
+
+        assert!(selector == expected);
+
+        let mut parser = Parser::new("button[ aria-expanded  =  \"true\" ]");
+        let selector = parser.parse_selector();
+
+        assert!(selector == expected);
     }
 }
