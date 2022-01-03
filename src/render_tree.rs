@@ -2,22 +2,22 @@ use crate::cssom;
 use crate::dom;
 use std::vec::Vec;
 
-struct StyledTree {
-    nodes: StyledNodes,
+struct RenderTree {
+    nodes: RenderNodes,
 }
 
-impl StyledTree {
+impl RenderTree {
     pub fn from(nodes: dom::Nodes, rulesets: cssom::Rulesets) -> Self {
         let nodes = nodes.iter().map(|node| {
             let declarations;
 
-            if node.element().is_some() {
-                declarations = declarations_for_element(node.element().unwrap(), &rulesets);
+            if let Some(element) = node.element() {
+                declarations = declarations_for_element(element, &rulesets);
             } else {
                 declarations = cssom::Declarations::new();
             }
 
-            return StyledNode {
+            return RenderNode {
                 node: node.clone(),
                 declarations: declarations,
             };
@@ -29,12 +29,12 @@ impl StyledTree {
     }
 }
 
-pub struct StyledNode {
+pub struct RenderNode {
     node: dom::Node,
     declarations: cssom::Declarations,
 }
 
-pub type StyledNodes = Vec<StyledNode>;
+pub type RenderNodes = Vec<RenderNode>;
 
 fn declarations_for_element(
     element: &dom::Element,
@@ -102,9 +102,9 @@ mod tests {
         let nodes = html::Parser::parse("<h1>Hello World!</h1><p>Lorem ipsum</p>");
         let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #333; } h1 { color: #000; } p { line-height: 1.5; }");
 
-        let styled_tree = StyledTree::from(nodes, rulesets);
-        let h1 = &styled_tree.nodes[0];
-        let p = &styled_tree.nodes[1];
+        let render_tree = RenderTree::from(nodes, rulesets);
+        let h1 = &render_tree.nodes[0];
+        let p = &render_tree.nodes[1];
 
         assert!(h1.node.element().unwrap().tag == "h1");
         assert!(h1.declarations.len() == 2);
