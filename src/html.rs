@@ -44,14 +44,13 @@ impl Parser {
             .parser
             .consume_while(&|next_char| next_char != '>' && !next_char.is_whitespace());
 
-        // Attributes
-        let mut attrs = dom::AttrMap::new();
+        let mut element = dom::Element::new(&opening_tag);
 
         self.parser.consume_whitespace();
 
         while self.parser.next_char() != '>' && !self.parser.starts_with("/>") {
             let (name, value) = self.parse_attribute();
-            attrs.insert(name, value);
+            element = element.attr(&name, &value);
 
             self.parser.consume_whitespace();
         }
@@ -60,14 +59,14 @@ impl Parser {
 
         // Void element
         if self.parser.starts_with("/>") {
-            return dom::element(&opening_tag, dom::Nodes::new(), attrs);
+            return dom::Node::Element(element);
         }
 
         assert!(self.parser.next_char() == '>');
         self.parser.consume_char();
 
         // Child nodes
-        let children = self.parse_nodes();
+        element = element.children(self.parse_nodes());
 
         // Closing tag
         assert!(self.parser.next_char() == '<');
@@ -80,7 +79,7 @@ impl Parser {
 
         assert!(opening_tag == closing_tag);
 
-        return dom::element(&opening_tag, children, attrs);
+        return dom::Node::Element(element);
     }
 
     fn parse_attribute(&mut self) -> (String, String) {
@@ -106,7 +105,7 @@ impl Parser {
 
         let text = self.parser.consume_while(&|next_char| next_char != '<');
 
-        return dom::text(&text);
+        return dom::Node::Text(text);
     }
 }
 
@@ -117,10 +116,12 @@ mod tests {
     #[test]
     fn test_parser_parse() {
         let nodes = Parser::parse("<p>Hello World!</p>");
-        assert!(nodes.len() == 1);
-        assert!(
-            nodes[0] == dom::element("p", vec![dom::text("Hello World!")], dom::AttrMap::new())
+        let expected = dom::Node::Element(
+            dom::Element::new("p").child(dom::Node::Text("Hello World!".to_owned())),
         );
+
+        assert!(nodes.len() == 1);
+        assert!(nodes[0] == expected);
     }
 
     #[test]
@@ -130,8 +131,13 @@ mod tests {
 
         let nodes = parser.parse_nodes();
         assert!(nodes.len() == 2);
-        assert!(nodes[0] == dom::text("Hello World!"));
-        assert!(nodes[1] == dom::element("p", vec![dom::text("Lorem ipsum")], dom::AttrMap::new()));
+        assert!(nodes[0] == dom::Node::Text("Hello World!".to_owned()));
+
+        let expected = dom::Node::Element(
+            dom::Element::new("p").child(dom::Node::Text("Lorem ipsum".to_owned())),
+        );
+
+        assert!(nodes[1] == expected);
 
         assert!(parser.parser.pos() == 36); // before the closing html tag
     }
@@ -141,10 +147,14 @@ mod tests {
         let mut parser = Parser::new("Hello World!<p>Lorem ipsum</p>");
 
         let node = parser.parse_node();
-        assert!(node == dom::text("Hello World!"));
+        assert!(node == dom::Node::Text("Hello World!".to_owned()));
 
         let node = parser.parse_node();
-        assert!(node == dom::element("p", vec![dom::text("Lorem ipsum")], dom::AttrMap::new()));
+        let expected = dom::Node::Element(
+            dom::Element::new("p").child(dom::Node::Text("Lorem ipsum".to_owned())),
+        );
+
+        assert!(node == expected);
     }
 
     #[test]
@@ -152,18 +162,18 @@ mod tests {
         let mut parser = Parser::new("<br />");
         let node = parser.parse_element();
 
-        assert!(node == dom::element("br", dom::Nodes::new(), dom::AttrMap::new()));
+        assert!(node == dom::Node::Element(dom::Element::new("br")));
 
         let mut parser = Parser::new("<img src=\"./cat.jpg\" alt=\"Cat\" />");
         let node = parser.parse_element();
 
-        let children = dom::Nodes::new();
-        let attrs = dom::AttrMap::from([
-            ("src".to_owned(), "./cat.jpg".to_owned()),
-            ("alt".to_owned(), "Cat".to_owned()),
-        ]);
+        let expected = dom::Node::Element(
+            dom::Element::new("img")
+                .attr("src", "./cat.jpg")
+                .attr("alt", "Cat"),
+        );
 
-        assert!(node == dom::element("img", children, attrs));
+        assert!(node == expected);
     }
 
     #[test]
@@ -171,21 +181,13 @@ mod tests {
         let mut parser = Parser::new("<div id=\"foo\" class=\"bar\"></div>");
         let node = parser.parse_element();
 
-        let children = dom::Nodes::new();
-        let attrs = dom::AttrMap::from([
-            ("id".to_owned(), "foo".to_owned()),
-            ("class".to_owned(), "bar".to_owned()),
-        ]);
+        let expected = dom::Node::Element(
+            dom::Element::new("div")
+                .attr("id", "foo")
+                .attr("class", "bar"),
+        );
 
-        assert!(node == dom::element("div", children, attrs));
-    }
-
-    #[test]
-    fn test_parser_parse_element() {
-        let mut parser = Parser::new("<html>Child node</html>");
-        let node = parser.parse_element();
-
-        assert!(node == dom::element("html", vec![dom::text("Child node")], dom::AttrMap::new()));
+        assert!(node == expected);
     }
 
     #[test]
@@ -202,6 +204,6 @@ mod tests {
         let mut parser = Parser::new("Hello <strong>World</strong>!");
 
         let node = parser.parse_text();
-        assert!(node == dom::text("Hello "));
+        assert!(node == dom::Node::Text("Hello ".to_owned()));
     }
 }

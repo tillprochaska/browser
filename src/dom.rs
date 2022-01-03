@@ -1,16 +1,6 @@
 use std::collections::HashMap;
 use std::vec::Vec;
 
-pub fn text(text: &str) -> Node {
-    return Node::Text(String::from(text));
-}
-
-pub fn element(tag: &str, children: Nodes, attrs: AttrMap) -> Node {
-    let element = Element::new(tag).children(children).attrs(attrs);
-
-    return Node::Element(element);
-}
-
 #[derive(PartialEq, Eq, Clone)]
 pub enum Node {
     Text(String),
@@ -51,6 +41,12 @@ impl Element {
 
     pub fn children(mut self, children: Nodes) -> Self {
         self.children = children;
+
+        return self;
+    }
+
+    pub fn child(mut self, child: Node) -> Self {
+        self.children.push(child);
 
         return self;
     }
