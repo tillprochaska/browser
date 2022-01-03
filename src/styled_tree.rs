@@ -42,9 +42,10 @@ fn declarations_for_element(
 ) -> cssom::Declarations {
     let matching_rulesets = rulesets.iter().filter(|ruleset| {
         // For now, we implement selectors consisting of a single tag name only
-        return ruleset.selectors.iter().any(&|selector: &cssom::Selector| {
-            return selector.text == element.name;
-        });
+        return ruleset
+            .selectors
+            .iter()
+            .any(&|selector: &cssom::Selector| element_matches_selector(element, selector));
     });
 
     let mut declarations = cssom::Declarations::new();
@@ -56,6 +57,16 @@ fn declarations_for_element(
     }
 
     return declarations;
+}
+
+fn element_matches_selector(element: &dom::Element, selector: &cssom::Selector) -> bool {
+    if let Some(tag) = &selector.tag {
+        if *tag != element.tag {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 #[cfg(test)]
@@ -73,15 +84,25 @@ mod tests {
         let h1 = &styled_tree.nodes[0];
         let p = &styled_tree.nodes[1];
 
-        assert!(h1.node.element().unwrap().name == "h1");
+        assert!(h1.node.element().unwrap().tag == "h1");
         assert!(h1.declarations.len() == 2);
         assert!(h1.declarations["font-family"] == "sans-serif");
         assert!(h1.declarations["color"] == "#000");
 
-        assert!(p.node.element().unwrap().name == "p");
+        assert!(p.node.element().unwrap().tag == "p");
         assert!(p.declarations.len() == 3);
         assert!(p.declarations["font-family"] == "sans-serif");
         assert!(p.declarations["color"] == "#333");
         assert!(p.declarations["line-height"] == "1.5");
+    }
+
+    #[test]
+    fn test_element_matches_selector_tag() {
+        let selector = &cssom::Selector::new().tag("p");
+        let p = &dom::Element::tag("p");
+        let div = &dom::Element::tag("div");
+
+        assert!(element_matches_selector(p, selector) == true);
+        assert!(element_matches_selector(div, selector) == false);
     }
 }

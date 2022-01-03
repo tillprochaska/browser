@@ -95,7 +95,7 @@ impl Parser {
             return next_char != ',' && next_char != '{';
         });
 
-        return cssom::Selector::new(&text.trim());
+        return cssom::Selector::new().tag(&text.trim());
     }
 }
 
@@ -109,8 +109,8 @@ mod tests {
         let rulesets = parser.parse_rulesets();
 
         assert!(rulesets.len() == 2);
-        assert!(rulesets[0].selectors[0] == cssom::Selector::new("ul"));
-        assert!(rulesets[1].selectors[0] == cssom::Selector::new("p"));
+        assert!(rulesets[0].selectors[0] == cssom::Selector::new().tag("ul"));
+        assert!(rulesets[1].selectors[0] == cssom::Selector::new().tag("p"));
         assert!(parser.parser.eof());
     }
 
@@ -119,7 +119,7 @@ mod tests {
         let mut parser = Parser::new("ul { padding-left: 1rem; list-style: square; }");
         let ruleset = parser.parse_ruleset();
 
-        assert!(ruleset.selectors == cssom::Selectors::from([cssom::Selector::new("ul")]));
+        assert!(ruleset.selectors == cssom::Selectors::from([cssom::Selector::new().tag("ul")]));
         assert!(ruleset.declarations.len() == 2);
         assert!(parser.parser.eof());
     }
@@ -150,14 +150,15 @@ mod tests {
         let selectors = parser.parse_selectors();
 
         assert!(selectors.len() == 2);
-        assert!(selectors[0] == cssom::Selector::new("ul"));
-        assert!(selectors[1] == cssom::Selector::new("ol"));
+        assert!(selectors[0] == cssom::Selector::new().tag("ul"));
+        assert!(selectors[1] == cssom::Selector::new().tag("ol"));
 
         assert!(
             selectors
-                == cssom::Selectors::from(
-                    [cssom::Selector::new("ul"), cssom::Selector::new("ol"),]
-                )
+                == cssom::Selectors::from([
+                    cssom::Selector::new().tag("ul"),
+                    cssom::Selector::new().tag("ol"),
+                ])
         );
     }
 
@@ -166,12 +167,12 @@ mod tests {
         let mut parser = Parser::new("ul, ol { padding-left: 1rem; }");
         let selector = parser.parse_selector();
 
-        assert!(selector == cssom::Selector::new("ul"));
+        assert!(selector == cssom::Selector::new().tag("ul"));
 
         // Trims whitespace
         let mut parser = Parser::new("ul { padding-left: 1rem; }");
         let selector = parser.parse_selector();
 
-        assert!(selector == cssom::Selector::new("ul"));
+        assert!(selector == cssom::Selector::new().tag("ul"));
     }
 }
