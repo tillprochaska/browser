@@ -1,40 +1,42 @@
 use crate::cssom;
 use crate::dom;
+use std::collections::HashMap;
 use std::vec::Vec;
 
-struct RenderTree {
-    nodes: RenderNodes,
+pub struct RenderNode<'a> {
+    node: &'a dom::Node,
+    declarations: cssom::Declarations,
+    children: RenderNodes<'a>,
 }
 
-impl RenderTree {
-    pub fn from(nodes: dom::Nodes, rulesets: cssom::Rulesets) -> Self {
-        let nodes = nodes.iter().map(|node| {
-            let declarations;
-
-            if let Some(element) = node.element() {
-                declarations = declarations_for_element(element, &rulesets);
-            } else {
-                declarations = cssom::Declarations::new();
-            }
-
+impl<'a> RenderNode<'a> {
+    pub fn from(node: &'a dom::Node, rulesets: &'a cssom::Rulesets) -> Self {
+        if let None = node.element() {
             return RenderNode {
-                node: node.clone(),
-                declarations: declarations,
+                node: node,
+                declarations: HashMap::new(),
+                children: Vec::new(),
             };
-        });
+        }
 
-        return Self {
-            nodes: nodes.collect(),
+        let element = node.element().unwrap();
+        let children = element
+            .children
+            .iter()
+            .map(|child| RenderNode::from(child, rulesets))
+            .collect();
+
+        let declarations = declarations_for_element(&element, &rulesets);
+
+        return RenderNode {
+            node: node,
+            children: children,
+            declarations: declarations,
         };
     }
 }
 
-pub struct RenderNode {
-    node: dom::Node,
-    declarations: cssom::Declarations,
-}
-
-pub type RenderNodes = Vec<RenderNode>;
+pub type RenderNodes<'a> = Vec<RenderNode<'a>>;
 
 struct MatchedRuleset<'a> {
     selector: &'a cssom::Selector,
@@ -126,24 +128,40 @@ mod tests {
     use crate::html;
 
     #[test]
-    fn test_render_tree_from() {
-        let nodes = html::Parser::parse("<h1>Hello World!</h1><p>Lorem ipsum</p>");
+    fn test_render_node_from() {
         let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #333; } h1 { color: #000; } p { line-height: 1.5; }");
 
-        let render_tree = RenderTree::from(nodes, rulesets);
-        let h1 = &render_tree.nodes[0];
-        let p = &render_tree.nodes[1];
+        let nodes = html::Parser::parse("<h1>Hello World!</h1>");
+        let h1 = RenderNode::from(&nodes[0], &rulesets);
 
         assert!(h1.node.element().unwrap().tag == "h1");
         assert!(h1.declarations.len() == 2);
         assert!(h1.declarations["font-family"] == "sans-serif");
         assert!(h1.declarations["color"] == "#000");
 
+        let nodes = html::Parser::parse("<p>Hello World!</p>");
+        let p = RenderNode::from(&nodes[0], &rulesets);
+
         assert!(p.node.element().unwrap().tag == "p");
         assert!(p.declarations.len() == 3);
         assert!(p.declarations["font-family"] == "sans-serif");
         assert!(p.declarations["color"] == "#333");
         assert!(p.declarations["line-height"] == "1.5");
+    }
+
+    #[test]
+    fn test_render_tree_node_recursive() {
+        let nodes = html::Parser::parse("<div><p>Lorem ipsum</p></div>");
+        let rulesets = css::Parser::parse("div { background: red; } p { color: yellow; }");
+
+        let div = &RenderNode::from(&nodes[0], &rulesets);
+        let p = &div.children[0];
+
+        assert!(div.node.element().unwrap().tag == "div");
+        assert!(div.declarations.len() == 1);
+
+        assert!(p.node.element().unwrap().tag == "p");
+        assert!(p.declarations.len() == 1);
     }
 
     #[test]
