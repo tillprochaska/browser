@@ -3,10 +3,37 @@ use crate::dom;
 use std::collections::HashMap;
 use std::vec::Vec;
 
+const HIDDEN_ELEMENTS: [&str; 15] = [
+    "area", "base", "basefont", "datalist", "head", "link", "meta", "noembed", "noframes", "param",
+    "rp", "script", "style", "template", "title",
+];
+
+const BLOCK_ELEMENTS: [&str; 18] = [
+    "address",
+    "blockquote",
+    "center",
+    "dialog",
+    "div",
+    "figure",
+    "figcaption",
+    "footer",
+    "form",
+    "header",
+    "hr",
+    "legend",
+    "listing",
+    "main",
+    "p",
+    "plaintext",
+    "pre",
+    "xmp",
+];
+
+#[derive(PartialEq, Eq, Clone)]
 pub struct RenderNode<'a> {
-    node: &'a dom::Node,
-    declarations: cssom::Declarations,
-    children: RenderNodes<'a>,
+    pub node: &'a dom::Node,
+    pub declarations: cssom::Declarations,
+    pub children: RenderNodes<'a>,
 }
 
 impl<'a> RenderNode<'a> {
@@ -34,6 +61,35 @@ impl<'a> RenderNode<'a> {
             declarations: declarations,
         };
     }
+
+    fn display_type(&self) -> DisplayType {
+        let element = self.node.element();
+
+        if let None = element {
+            return DisplayType::Inline;
+        }
+
+        if let Some(value) = self.declarations.get("display") {
+            match value.as_ref() {
+                "none" => return DisplayType::None,
+                "block" => return DisplayType::Block,
+                "inline" => return DisplayType::Inline,
+                _ => (),
+            }
+        }
+
+        let tag = element.unwrap().tag.as_ref();
+
+        if HIDDEN_ELEMENTS.contains(&tag) {
+            return DisplayType::None;
+        }
+
+        if BLOCK_ELEMENTS.contains(&tag) {
+            return DisplayType::Block;
+        }
+
+        return DisplayType::Inline;
+    }
 }
 
 pub type RenderNodes<'a> = Vec<RenderNode<'a>>;
@@ -50,6 +106,13 @@ impl<'a> MatchedRuleset<'a> {
             declarations: declarations,
         };
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum DisplayType {
+    None,
+    Block,
+    Inline,
 }
 
 fn declarations_for_element(
@@ -125,6 +188,7 @@ fn element_matches_selector(element: &dom::Element, selector: &cssom::Selector) 
 mod tests {
     use super::*;
     use crate::css;
+    use crate::dom::{Element, Node};
     use crate::html;
 
     #[test]
@@ -243,5 +307,32 @@ mod tests {
             .attr("lorem", "ipsum");
 
         assert!(element_matches_selector(element, selector) == false);
+    }
+
+    #[test]
+    fn test_render_node_display_type() {
+        let rulesets = css::Parser::parse("");
+
+        let meta_dom_node = Node::Element(Element::new("meta"));
+        let div_dom_node = Node::Element(Element::new("div"));
+        let span_dom_node = Node::Element(Element::new("span"));
+
+        let mut meta_render_node = RenderNode::from(&meta_dom_node, &rulesets);
+        let mut div_render_node = RenderNode::from(&div_dom_node, &rulesets);
+        let mut span_render_node = RenderNode::from(&span_dom_node, &rulesets);
+
+        assert!(meta_render_node.display_type() == DisplayType::None);
+        assert!(div_render_node.display_type() == DisplayType::Block);
+        assert!(span_render_node.display_type() == DisplayType::Inline);
+
+        let overrides = css::Parser::parse("div { display: inline; } span { display: block; }");
+
+        meta_render_node = RenderNode::from(&meta_dom_node, &overrides);
+        div_render_node = RenderNode::from(&div_dom_node, &overrides);
+        span_render_node = RenderNode::from(&span_dom_node, &overrides);
+
+        assert!(meta_render_node.display_type() == DisplayType::None);
+        assert!(div_render_node.display_type() == DisplayType::Inline);
+        assert!(span_render_node.display_type() == DisplayType::Block);
     }
 }
