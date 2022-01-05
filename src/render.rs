@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_render_tree_node_recursive() {
+    fn test_render_node_recursive() {
         let nodes = html::Parser::parse("<div><p>Lorem ipsum</p></div>");
         let rulesets = css::Parser::parse("div { background: red; } p { color: yellow; }");
 

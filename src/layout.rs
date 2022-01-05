@@ -1,9 +1,9 @@
 use crate::cssom;
-use crate::render_tree;
+use crate::render;
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct LayoutNode<'a> {
-    pub node: &'a render_tree::RenderNode<'a>,
+    pub node: &'a render::RenderNode<'a>,
     pub children: Vec<Self>,
     pub dimensions: Dimensions,
     pub position: Point,
@@ -11,7 +11,7 @@ pub struct LayoutNode<'a> {
 
 impl<'a> LayoutNode<'a> {
     pub fn from(
-        render_node: &'a render_tree::RenderNode,
+        render_node: &'a render::RenderNode,
         viewport: &Dimensions,
         anchor: &Point,
     ) -> Self {
@@ -136,7 +136,7 @@ mod tests {
     use super::*;
     use crate::css;
     use crate::html;
-    use crate::render_tree;
+    use crate::render;
 
     #[test]
     fn test_layout_node_from() {
@@ -146,7 +146,7 @@ mod tests {
         let rulesets = css::Parser::parse("");
         let dom = html::Parser::parse("<main><h1>Hello World!</h1><p>Lorem ipsum</p></main>");
 
-        let render_node = render_tree::RenderNode::from(&dom[0], &rulesets);
+        let render_node = render::RenderNode::from(&dom[0], &rulesets);
         let node = LayoutNode::from(&render_node, &viewport, &anchor);
 
         let h1 = &node.children[0];
@@ -165,25 +165,25 @@ mod tests {
 
         // Implicit
         let implicit_rulesets = css::Parser::parse("");
-        let implicit_render_node = render_tree::RenderNode::from(&dom[0], &implicit_rulesets);
+        let implicit_render_node = render::RenderNode::from(&dom[0], &implicit_rulesets);
         let implicit_layout_node = LayoutNode::from(&implicit_render_node, &viewport, &anchor);
         assert!(implicit_layout_node.dimensions.width == 640);
 
         // Zero
         let zero_rulesets = css::Parser::parse("div { width: 0; }");
-        let zero_render_node = render_tree::RenderNode::from(&dom[0], &zero_rulesets);
+        let zero_render_node = render::RenderNode::from(&dom[0], &zero_rulesets);
         let zero_layout_node = LayoutNode::from(&zero_render_node, &viewport, &anchor);
         assert!(zero_layout_node.dimensions.width == 0);
 
         // Pixels
         let px_rulesets = css::Parser::parse("div { width: 50px; }");
-        let px_render_node = render_tree::RenderNode::from(&dom[0], &px_rulesets);
+        let px_render_node = render::RenderNode::from(&dom[0], &px_rulesets);
         let px_layout_node = LayoutNode::from(&px_render_node, &viewport, &anchor);
         assert!(px_layout_node.dimensions.width == 50);
 
         // Percentage
         let percentage_rulesets = css::Parser::parse("div { width: 50%; }");
-        let percentage_render_node = render_tree::RenderNode::from(&dom[0], &percentage_rulesets);
+        let percentage_render_node = render::RenderNode::from(&dom[0], &percentage_rulesets);
         let percentage_layout_node = LayoutNode::from(&percentage_render_node, &viewport, &anchor);
         println!("{}", percentage_layout_node.dimensions.width);
         assert!(percentage_layout_node.dimensions.width == 320);
@@ -197,25 +197,25 @@ mod tests {
 
         // Implicit
         let implicit_rulesets = css::Parser::parse("p { height: 100px; }");
-        let implicit_render_node = render_tree::RenderNode::from(&dom[0], &implicit_rulesets);
+        let implicit_render_node = render::RenderNode::from(&dom[0], &implicit_rulesets);
         let implicit_layout_node = LayoutNode::from(&implicit_render_node, &viewport, &anchor);
         assert!(implicit_layout_node.dimensions.height == 200);
 
         // Zero
         let zero_rulesets = css::Parser::parse("div { height: 0; }");
-        let zero_render_node = render_tree::RenderNode::from(&dom[0], &zero_rulesets);
+        let zero_render_node = render::RenderNode::from(&dom[0], &zero_rulesets);
         let zero_layout_node = LayoutNode::from(&zero_render_node, &viewport, &anchor);
         assert!(zero_layout_node.dimensions.height == 0);
 
         // Pixels
         let px_rulesets = css::Parser::parse("div { height: 50px; }");
-        let px_render_node = render_tree::RenderNode::from(&dom[0], &px_rulesets);
+        let px_render_node = render::RenderNode::from(&dom[0], &px_rulesets);
         let px_layout_node = LayoutNode::from(&px_render_node, &viewport, &anchor);
         assert!(px_layout_node.dimensions.height == 50);
 
         // Percentage
         let percentage_rulesets = css::Parser::parse("div { height: 50%; }");
-        let percentage_render_node = render_tree::RenderNode::from(&dom[0], &percentage_rulesets);
+        let percentage_render_node = render::RenderNode::from(&dom[0], &percentage_rulesets);
         let percentage_layout_node = LayoutNode::from(&percentage_render_node, &viewport, &anchor);
         assert!(percentage_layout_node.dimensions.height == 240);
     }
@@ -227,7 +227,7 @@ mod tests {
 
         let rulesets = css::Parser::parse("div { height: 100px; }");
         let dom = html::Parser::parse("<html><div></div><div></div></html>");
-        let render_node = render_tree::RenderNode::from(&dom[0], &rulesets);
+        let render_node = render::RenderNode::from(&dom[0], &rulesets);
         let layout_node = &LayoutNode::from(&render_node, &viewport, &anchor);
 
         assert!(layout_node.children[0].position == Point::new(0, 0));

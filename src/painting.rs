@@ -1,4 +1,4 @@
-use crate::layout_tree;
+use crate::layout;
 use rand::Rng;
 
 pub struct WindowBuffer {
@@ -20,7 +20,7 @@ impl WindowBuffer {
         return &self.buffer;
     }
 
-    pub fn paint_node(&mut self, node: &layout_tree::LayoutNode) -> () {
+    pub fn paint_node(&mut self, node: &layout::LayoutNode) -> () {
         // Parsing color values currently isn’t supported, so we’re
         // using random colors instead.
         let color = rand::thread_rng().gen_range(1..0xffffff);
@@ -29,8 +29,8 @@ impl WindowBuffer {
 
     fn paint_rect(
         &mut self,
-        position: &layout_tree::Point,
-        dimensions: &layout_tree::Dimensions,
+        position: &layout::Point,
+        dimensions: &layout::Dimensions,
         color: u32,
     ) -> () {
         let x1 = position.x;

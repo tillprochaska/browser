@@ -1,6 +1,6 @@
 extern crate minifb;
 
-use crate::layout_tree;
+use crate::layout;
 use crate::painting;
 
 const WIDTH: usize = 640;
@@ -29,7 +29,7 @@ impl Window {
         return self.inner.is_open();
     }
 
-    pub fn paint_node(&mut self, node: &layout_tree::LayoutNode) -> &Self {
+    pub fn paint_node(&mut self, node: &layout::LayoutNode) -> &Self {
         self.buffer.paint_node(node);
 
         return self;

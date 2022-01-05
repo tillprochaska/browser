@@ -2,10 +2,10 @@ pub mod css;
 pub mod cssom;
 pub mod dom;
 pub mod html;
-pub mod layout_tree;
+pub mod layout;
 pub mod painting;
 pub mod parser;
-pub mod render_tree;
+pub mod render;
 pub mod window;
 
 fn main() {
@@ -42,11 +42,11 @@ fn main() {
     ",
     );
 
-    let viewport = layout_tree::Dimensions::new(640, 480);
-    let anchor = layout_tree::Point::new(0, 0);
+    let viewport = layout::Dimensions::new(640, 480);
+    let anchor = layout::Point::new(0, 0);
 
-    let render_node = render_tree::RenderNode::from(&dom[0], &styles);
-    let layout_node = layout_tree::LayoutNode::from(&render_node, &viewport, &anchor);
+    let render_node = render::RenderNode::from(&dom[0], &styles);
+    let layout_node = layout::LayoutNode::from(&render_node, &viewport, &anchor);
 
     window.paint_node(&layout_node.children[1].children[0].children[0]);
     window.paint_node(&layout_node.children[1].children[0].children[1]);
