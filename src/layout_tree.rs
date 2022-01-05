@@ -3,14 +3,14 @@ use crate::render_tree;
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct LayoutNode<'a> {
-    node: &'a render_tree::RenderNode<'a>,
-    children: Vec<Self>,
-    dimensions: Dimensions,
-    position: Point,
+    pub node: &'a render_tree::RenderNode<'a>,
+    pub children: Vec<Self>,
+    pub dimensions: Dimensions,
+    pub position: Point,
 }
 
 impl<'a> LayoutNode<'a> {
-    fn from(
+    pub fn from(
         render_node: &'a render_tree::RenderNode,
         viewport: &Dimensions,
         anchor: &Point,
@@ -53,7 +53,7 @@ impl<'a> LayoutNode<'a> {
         return self;
     }
 
-    fn calculate_width(&self, containing_block_dimensions: &Dimensions) -> u16 {
+    fn calculate_width(&self, containing_block_dimensions: &Dimensions) -> usize {
         let implicit_width = containing_block_dimensions.width;
 
         if self.node.declarations.get("width").is_none() {
@@ -73,11 +73,11 @@ impl<'a> LayoutNode<'a> {
         return implicit_width;
     }
 
-    fn calculate_height(&self, containing_block_dimensions: &Dimensions) -> u16 {
+    fn calculate_height(&self, containing_block_dimensions: &Dimensions) -> usize {
         let implicit_height = self
             .children
             .iter()
-            .fold(0u16, |acc, child| acc + child.dimensions.height);
+            .fold(0usize, |acc, child| acc + child.dimensions.height);
 
         if self.node.declarations.get("height").is_none() {
             return implicit_height;
@@ -105,13 +105,13 @@ impl<'a> LayoutNode<'a> {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-struct Dimensions {
-    width: u16,
-    height: u16,
+pub struct Dimensions {
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Dimensions {
-    pub fn new(width: u16, height: u16) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         return Self {
             width: width,
             height: height,
@@ -120,13 +120,13 @@ impl Dimensions {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-struct Point {
-    x: u16,
-    y: u16,
+pub struct Point {
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Point {
-    pub fn new(x: u16, y: u16) -> Self {
+    pub fn new(x: usize, y: usize) -> Self {
         return Self { x: x, y: y };
     }
 }

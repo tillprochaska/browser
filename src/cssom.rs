@@ -122,8 +122,8 @@ pub enum Value {
 #[derive(PartialEq, Eq, Clone)]
 pub enum NumericValue {
     Zero,
-    Px(u16),
-    Percentage(u16),
+    Px(usize),
+    Percentage(usize),
 }
 
 pub type Rulesets = Vec<Ruleset>;
