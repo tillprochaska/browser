@@ -83,7 +83,38 @@ impl Parser {
             return cssom::Value::Numeric(self.parse_numeric_value());
         }
 
+        if self.parser.next_char() == '#' {
+            return cssom::Value::Color(self.parse_color_value());
+        }
+
         return cssom::Value::String(self.parse_string_value());
+    }
+
+    fn parse_color_value(&mut self) -> cssom::Color {
+        assert!(self.parser.next_char() == '#');
+        self.parser.consume_char();
+
+        let mut hex = self
+            .parser
+            .consume_while(&|next_char| next_char.is_ascii_hexdigit());
+
+        self.parser.consume_whitespace();
+
+        assert!(hex.len() == 3 || hex.len() == 6);
+
+        // Shorthand #abc == #aabbcc
+        if hex.len() == 3 {
+            hex = hex
+                .chars()
+                .flat_map(|c| std::iter::repeat(c).take(2))
+                .collect();
+        }
+
+        let r = u8::from_str_radix(&hex[0..2], 16).unwrap();
+        let g = u8::from_str_radix(&hex[2..4], 16).unwrap();
+        let b = u8::from_str_radix(&hex[4..6], 16).unwrap();
+
+        return cssom::Color::new(r, g, b);
     }
 
     fn parse_numeric_value(&mut self) -> cssom::NumericValue {
@@ -257,6 +288,12 @@ mod tests {
     fn test_parser_parse_value() {
         assert!(Parser::new("0").parse_value() == cssom::Value::Numeric(cssom::NumericValue::Zero));
         assert!(Parser::new("auto").parse_value() == cssom::Value::String("auto".to_owned()));
+    }
+
+    #[test]
+    fn test_parser_parse_color_value() {
+        assert!(Parser::new("#aabbcc").parse_color_value() == cssom::Color::new(0xaa, 0xbb, 0xcc));
+        assert!(Parser::new("#abc").parse_color_value() == cssom::Color::new(0xaa, 0xbb, 0xcc));
     }
 
     #[test]

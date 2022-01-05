@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_render_node_from() {
-        let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #333; } h1 { color: #000; } p { line-height: 20px; }");
+        let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #f00; } h1 { color: #000; } p { line-height: 20px; }");
 
         let nodes = html::Parser::parse("<h1>Hello World!</h1>");
         let h1 = RenderNode::from(&nodes[0], &rulesets);
@@ -202,7 +202,7 @@ mod tests {
         assert!(h1.node.element().unwrap().tag == "h1");
         assert!(h1.declarations.len() == 2);
         assert!(h1.declarations["font-family"] == cssom::Value::String("sans-serif".to_owned()));
-        assert!(h1.declarations["color"] == cssom::Value::String("#000".to_owned()));
+        assert!(h1.declarations["color"] == cssom::Value::Color(cssom::Color::new(0, 0, 0)));
 
         let nodes = html::Parser::parse("<p>Hello World!</p>");
         let p = RenderNode::from(&nodes[0], &rulesets);
@@ -210,7 +210,7 @@ mod tests {
         assert!(p.node.element().unwrap().tag == "p");
         assert!(p.declarations.len() == 3);
         assert!(p.declarations["font-family"] == cssom::Value::String("sans-serif".to_owned()));
-        assert!(p.declarations["color"] == cssom::Value::String("#333".to_owned()));
+        assert!(p.declarations["color"] == cssom::Value::Color(cssom::Color::new(255, 0, 0)));
         assert!(
             p.declarations["line-height"] == cssom::Value::Numeric(cssom::NumericValue::Px(20))
         );
@@ -234,11 +234,11 @@ mod tests {
     #[test]
     fn test_declarations_for_element() {
         let element = &dom::Element::new("p");
-        let rulesets = &css::Parser::parse("h1 { color: red; } p { color: #333; }");
+        let rulesets = &css::Parser::parse("h1 { color: red; } p { color: #000; }");
         let declarations = declarations_for_element(element, rulesets);
 
         assert!(declarations.len() == 1);
-        assert!(declarations["color"] == cssom::Value::String("#333".to_owned()));
+        assert!(declarations["color"] == cssom::Value::Color(cssom::Color::new(0, 0, 0)));
     }
 
     #[test]

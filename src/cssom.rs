@@ -117,6 +117,7 @@ impl Ord for Specificity {
 pub enum Value {
     String(String),
     Numeric(NumericValue),
+    Color(Color),
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -124,6 +125,23 @@ pub enum NumericValue {
     Zero,
     Px(usize),
     Percentage(usize),
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+impl Color {
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        return Self { r: r, g: g, b: b };
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        return u32::from_be_bytes([0, self.r, self.g, self.b]);
+    }
 }
 
 pub type Rulesets = Vec<Ruleset>;

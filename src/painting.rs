@@ -1,5 +1,5 @@
+use crate::cssom;
 use crate::layout;
-use rand::Rng;
 
 pub struct WindowBuffer {
     width: usize,
@@ -21,10 +21,15 @@ impl WindowBuffer {
     }
 
     pub fn paint_node(&mut self, node: &layout::LayoutNode) -> () {
-        // Parsing color values currently isn’t supported, so we’re
-        // using random colors instead.
-        let color = rand::thread_rng().gen_range(1..0xffffff);
-        self.paint_rect(&node.position, &node.dimensions, color);
+        let background_color = node.node.declarations.get("background-color");
+
+        if background_color.is_none() {
+            return;
+        }
+
+        if let cssom::Value::Color(background_color) = background_color.unwrap() {
+            self.paint_rect(&node.position, &node.dimensions, background_color.as_u32());
+        }
     }
 
     fn paint_rect(

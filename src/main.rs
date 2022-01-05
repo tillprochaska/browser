@@ -19,8 +19,8 @@ fn main() {
             </head>
             <body>
                 <main>
-                    <h1>Hello World!</h1>
-                    <p>Lorem Ipsum dolor sit amet</p>
+                    <div class=\"first\"></div>
+                    <div class=\"second\"></div>
                 </main>
             </body>
         </html>
@@ -29,12 +29,12 @@ fn main() {
 
     let styles = css::Parser::parse(
         "
-        h1 {
+        .first {
             height: 50px;
             background-color: #f00;
         }
 
-        p {
+        .second {
             height: 200px;
             margin-top: 10px;
             background-color: #00f;
