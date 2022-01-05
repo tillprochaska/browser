@@ -21,6 +21,8 @@ impl Parser {
     fn parse_rulesets(&mut self) -> cssom::Rulesets {
         let mut rulesets = cssom::Rulesets::new();
 
+        self.parser.consume_whitespace();
+
         while !self.parser.eof() {
             rulesets.push(self.parse_ruleset());
             self.parser.consume_whitespace();
@@ -211,6 +213,14 @@ mod tests {
         assert!(rulesets[0].selectors[0] == cssom::Selector::new().tag("ul"));
         assert!(rulesets[1].selectors[0] == cssom::Selector::new().tag("p"));
         assert!(parser.parser.eof());
+    }
+
+    #[test]
+    fn test_parser_parse_rulesets_whitespace() {
+        let mut parser = Parser::new("    div { color: red; }");
+        let rulesets = parser.parse_rulesets();
+
+        assert!(rulesets.len() == 1);
     }
 
     #[test]

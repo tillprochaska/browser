@@ -21,8 +21,11 @@ impl Parser {
     pub fn parse_nodes(&mut self) -> dom::Nodes {
         let mut result = dom::Nodes::new();
 
+        self.parser.consume_whitespace();
+
         while !self.parser.eof() && !self.parser.starts_with("</") {
             result.push(self.parse_node());
+            self.parser.consume_whitespace();
         }
 
         return result;
@@ -140,6 +143,18 @@ mod tests {
         assert!(nodes[1] == expected);
 
         assert!(parser.parser.pos() == 36); // before the closing html tag
+    }
+
+    #[test]
+    fn test_parser_parse_nodes_whitespace() {
+        // Ignores leading whitespace
+        assert!(Parser::new("  <html></html>").parse_nodes().len() == 1);
+
+        // Ignores whitespace between elements
+        assert!(Parser::new("<div></div>  <div></div>").parse_nodes().len() == 2);
+
+        // Ignores tailing whitespace
+        assert!(Parser::new("<html></html>  ").parse_nodes().len() == 1);
     }
 
     #[test]
