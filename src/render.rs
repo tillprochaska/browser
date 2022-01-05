@@ -166,7 +166,6 @@ fn element_matches_selector(element: &dom::Element, selector: &cssom::Selector) 
 
     for class in &selector.classes {
         if !element.class_list().contains(&class) {
-            println!("{}", class);
             return false;
         }
     }

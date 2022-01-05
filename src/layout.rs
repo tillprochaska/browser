@@ -185,7 +185,6 @@ mod tests {
         let percentage_rulesets = css::Parser::parse("div { width: 50%; }");
         let percentage_render_node = render::RenderNode::from(&dom[0], &percentage_rulesets);
         let percentage_layout_node = LayoutNode::from(&percentage_render_node, &viewport, &anchor);
-        println!("{}", percentage_layout_node.dimensions.width);
         assert!(percentage_layout_node.dimensions.width == 320);
     }
 

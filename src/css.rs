@@ -203,7 +203,6 @@ impl Parser {
 
                     self.parser.consume_char();
                     self.parser.consume_whitespace();
-                    println!("{}", self.parser.next_char());
                     assert!(self.parser.next_char() == ']');
                     self.parser.consume_char();
 

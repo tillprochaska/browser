@@ -30,11 +30,13 @@ fn main() {
     let styles = css::Parser::parse(
         "
         .first {
+            width: 33%;
             height: 50px;
             background-color: #f00;
         }
 
         .second {
+            width: 66%;
             height: 200px;
             margin-top: 10px;
             background-color: #00f;

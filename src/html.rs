@@ -58,8 +58,6 @@ impl Parser {
             self.parser.consume_whitespace();
         }
 
-        println!("{}", self.parser.next_char());
-
         // Void element
         if self.parser.starts_with("/>") {
             return dom::Node::Element(element);
