@@ -70,10 +70,10 @@ impl<'a> RenderNode<'a> {
         }
 
         if let Some(value) = self.declarations.get("display") {
-            match value.as_ref() {
-                "none" => return DisplayType::None,
-                "block" => return DisplayType::Block,
-                "inline" => return DisplayType::Inline,
+            match value {
+                cssom::Value::String(value) if value == "none" => return DisplayType::None,
+                cssom::Value::String(value) if value == "block" => return DisplayType::Block,
+                cssom::Value::String(value) if value == "inline" => return DisplayType::Inline,
                 _ => (),
             }
         }
@@ -144,7 +144,7 @@ fn declarations_for_element(
 
     for ruleset in matches {
         for (property, value) in ruleset.declarations.iter() {
-            declarations.insert(String::from(property), String::from(value));
+            declarations.insert(String::from(property), value.clone());
         }
     }
 
@@ -188,29 +188,32 @@ fn element_matches_selector(element: &dom::Element, selector: &cssom::Selector) 
 mod tests {
     use super::*;
     use crate::css;
+    use crate::cssom;
     use crate::dom::{Element, Node};
     use crate::html;
 
     #[test]
     fn test_render_node_from() {
-        let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #333; } h1 { color: #000; } p { line-height: 1.5; }");
+        let rulesets = css::Parser::parse("h1, p { font-family: sans-serif; color: #333; } h1 { color: #000; } p { line-height: 20px; }");
 
         let nodes = html::Parser::parse("<h1>Hello World!</h1>");
         let h1 = RenderNode::from(&nodes[0], &rulesets);
 
         assert!(h1.node.element().unwrap().tag == "h1");
         assert!(h1.declarations.len() == 2);
-        assert!(h1.declarations["font-family"] == "sans-serif");
-        assert!(h1.declarations["color"] == "#000");
+        assert!(h1.declarations["font-family"] == cssom::Value::String("sans-serif".to_owned()));
+        assert!(h1.declarations["color"] == cssom::Value::String("#000".to_owned()));
 
         let nodes = html::Parser::parse("<p>Hello World!</p>");
         let p = RenderNode::from(&nodes[0], &rulesets);
 
         assert!(p.node.element().unwrap().tag == "p");
         assert!(p.declarations.len() == 3);
-        assert!(p.declarations["font-family"] == "sans-serif");
-        assert!(p.declarations["color"] == "#333");
-        assert!(p.declarations["line-height"] == "1.5");
+        assert!(p.declarations["font-family"] == cssom::Value::String("sans-serif".to_owned()));
+        assert!(p.declarations["color"] == cssom::Value::String("#333".to_owned()));
+        assert!(
+            p.declarations["line-height"] == cssom::Value::Numeric(cssom::NumericValue::Px(20))
+        );
     }
 
     #[test]
@@ -235,7 +238,7 @@ mod tests {
         let declarations = declarations_for_element(element, rulesets);
 
         assert!(declarations.len() == 1);
-        assert!(declarations["color"] == "#333");
+        assert!(declarations["color"] == cssom::Value::String("#333".to_owned()));
     }
 
     #[test]
@@ -246,7 +249,7 @@ mod tests {
         let declarations = declarations_for_element(element, rulesets);
 
         assert!(declarations.len() == 1);
-        assert!(declarations["color"] == "green");
+        assert!(declarations["color"] == cssom::Value::String("green".to_owned()));
     }
 
     #[test]
@@ -256,7 +259,7 @@ mod tests {
         let declarations = declarations_for_element(element, rulesets);
 
         assert!(declarations.len() == 1);
-        assert!(declarations["color"] == "red");
+        assert!(declarations["color"] == cssom::Value::String("red".to_owned()));
     }
 
     #[test]

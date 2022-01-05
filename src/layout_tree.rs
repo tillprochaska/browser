@@ -1,3 +1,4 @@
+use crate::cssom;
 use crate::render_tree;
 
 #[derive(PartialEq, Eq, Clone)]
@@ -21,10 +22,10 @@ impl<'a> LayoutNode<'a> {
             position: *anchor,
         };
 
-        node.calculate_position(&anchor);
+        node.set_position(&anchor);
 
         // Calculate initial dimensions without child nodes
-        node.calculate_dimensions(&viewport);
+        node.set_dimensions(&viewport);
 
         let mut next_position = node.position;
 
@@ -40,40 +41,62 @@ impl<'a> LayoutNode<'a> {
         }
 
         // Calculate final dimensions including child nodes
-        node.calculate_dimensions(&viewport);
+        node.set_dimensions(&viewport);
 
         return node;
     }
 
-    fn calculate_dimensions(&mut self, containing_block_dimensions: &Dimensions) -> &Self {
-        let computed_width;
-        let computed_height;
-
-        if let Some(width) = self.node.declarations.get("width") {
-            // Explicit width given, supports px values only for now
-            computed_width = width.strip_suffix("px").unwrap().parse().unwrap();
-        } else {
-            // Implicit width based on containing block
-            computed_width = containing_block_dimensions.width;
-        }
-
-        if let Some(height) = self.node.declarations.get("height") {
-            // Explicit height given, supports px values only for now
-            computed_height = height.strip_suffix("px").unwrap().parse().unwrap();
-        } else {
-            // Implicit height based on children’s heights
-            computed_height = self
-                .children
-                .iter()
-                .fold(0u16, |acc, child| acc + child.dimensions.height);
-        }
-
-        self.dimensions = Dimensions::new(computed_width, computed_height);
+    fn set_dimensions(&mut self, containing_block_dimensions: &Dimensions) -> &Self {
+        self.dimensions.width = self.calculate_width(containing_block_dimensions);
+        self.dimensions.height = self.calculate_height(containing_block_dimensions);
 
         return self;
     }
 
-    fn calculate_position(&mut self, anchor: &Point) -> &Self {
+    fn calculate_width(&self, containing_block_dimensions: &Dimensions) -> u16 {
+        let implicit_width = containing_block_dimensions.width;
+
+        if self.node.declarations.get("width").is_none() {
+            return implicit_width;
+        }
+
+        if let cssom::Value::Numeric(width) = &self.node.declarations["width"] {
+            return match width {
+                cssom::NumericValue::Zero => 0,
+                cssom::NumericValue::Px(number) => *number,
+                cssom::NumericValue::Percentage(number) => {
+                    number * containing_block_dimensions.width / 100
+                }
+            };
+        }
+
+        return implicit_width;
+    }
+
+    fn calculate_height(&self, containing_block_dimensions: &Dimensions) -> u16 {
+        let implicit_height = self
+            .children
+            .iter()
+            .fold(0u16, |acc, child| acc + child.dimensions.height);
+
+        if self.node.declarations.get("height").is_none() {
+            return implicit_height;
+        }
+
+        if let cssom::Value::Numeric(height) = &self.node.declarations["height"] {
+            return match height {
+                cssom::NumericValue::Zero => 0,
+                cssom::NumericValue::Px(number) => *number,
+                cssom::NumericValue::Percentage(number) => {
+                    number * containing_block_dimensions.height / 100
+                }
+            };
+        }
+
+        return implicit_height;
+    }
+
+    fn set_position(&mut self, anchor: &Point) -> &Self {
         // TODO: Support margin, position etc.
         self.position = Point::new(anchor.x, anchor.y);
 
@@ -135,32 +158,66 @@ mod tests {
     }
 
     #[test]
-    fn test_layout_node_calculate_dimensions_width() {
+    fn test_layout_node_set_dimensions_width() {
         let viewport = Dimensions::new(640, 480);
         let anchor = Point::new(0, 0);
+        let dom = html::Parser::parse("<div></div>");
 
-        let rulesets = css::Parser::parse("div { width: 320px; height: 240px; }");
-        let dom = html::Parser::parse("<div><p></p></div>");
-        let render_node = render_tree::RenderNode::from(&dom[0], &rulesets);
+        // Implicit
+        let implicit_rulesets = css::Parser::parse("");
+        let implicit_render_node = render_tree::RenderNode::from(&dom[0], &implicit_rulesets);
+        let implicit_layout_node = LayoutNode::from(&implicit_render_node, &viewport, &anchor);
+        assert!(implicit_layout_node.dimensions.width == 640);
 
-        let parent = &LayoutNode::from(&render_node, &viewport, &anchor);
-        let child = &parent.children[0];
+        // Zero
+        let zero_rulesets = css::Parser::parse("div { width: 0; }");
+        let zero_render_node = render_tree::RenderNode::from(&dom[0], &zero_rulesets);
+        let zero_layout_node = LayoutNode::from(&zero_render_node, &viewport, &anchor);
+        assert!(zero_layout_node.dimensions.width == 0);
 
-        assert!(parent.dimensions == Dimensions::new(320, 240));
-        assert!(child.dimensions == Dimensions::new(320, 0));
+        // Pixels
+        let px_rulesets = css::Parser::parse("div { width: 50px; }");
+        let px_render_node = render_tree::RenderNode::from(&dom[0], &px_rulesets);
+        let px_layout_node = LayoutNode::from(&px_render_node, &viewport, &anchor);
+        assert!(px_layout_node.dimensions.width == 50);
+
+        // Percentage
+        let percentage_rulesets = css::Parser::parse("div { width: 50%; }");
+        let percentage_render_node = render_tree::RenderNode::from(&dom[0], &percentage_rulesets);
+        let percentage_layout_node = LayoutNode::from(&percentage_render_node, &viewport, &anchor);
+        println!("{}", percentage_layout_node.dimensions.width);
+        assert!(percentage_layout_node.dimensions.width == 320);
     }
 
     #[test]
-    fn test_layout_node_calculate_dimensions_height() {
+    fn test_layout_node_set_dimensions_height() {
         let viewport = Dimensions::new(640, 480);
         let anchor = Point::new(0, 0);
+        let dom = html::Parser::parse("<div><p></p><p></p></div>");
 
-        let rulesets = css::Parser::parse("div { height: 100px; }");
-        let dom = html::Parser::parse("<html><div></div><div></div></html>");
-        let render_node = render_tree::RenderNode::from(&dom[0], &rulesets);
-        let layout_node = &LayoutNode::from(&render_node, &viewport, &anchor);
+        // Implicit
+        let implicit_rulesets = css::Parser::parse("p { height: 100px; }");
+        let implicit_render_node = render_tree::RenderNode::from(&dom[0], &implicit_rulesets);
+        let implicit_layout_node = LayoutNode::from(&implicit_render_node, &viewport, &anchor);
+        assert!(implicit_layout_node.dimensions.height == 200);
 
-        assert!(layout_node.dimensions == Dimensions::new(640, 200));
+        // Zero
+        let zero_rulesets = css::Parser::parse("div { height: 0; }");
+        let zero_render_node = render_tree::RenderNode::from(&dom[0], &zero_rulesets);
+        let zero_layout_node = LayoutNode::from(&zero_render_node, &viewport, &anchor);
+        assert!(zero_layout_node.dimensions.height == 0);
+
+        // Pixels
+        let px_rulesets = css::Parser::parse("div { height: 50px; }");
+        let px_render_node = render_tree::RenderNode::from(&dom[0], &px_rulesets);
+        let px_layout_node = LayoutNode::from(&px_render_node, &viewport, &anchor);
+        assert!(px_layout_node.dimensions.height == 50);
+
+        // Percentage
+        let percentage_rulesets = css::Parser::parse("div { height: 50%; }");
+        let percentage_render_node = render_tree::RenderNode::from(&dom[0], &percentage_rulesets);
+        let percentage_layout_node = LayoutNode::from(&percentage_render_node, &viewport, &anchor);
+        assert!(percentage_layout_node.dimensions.height == 240);
     }
 
     #[test]

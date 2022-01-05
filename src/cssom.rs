@@ -113,9 +113,22 @@ impl Ord for Specificity {
     }
 }
 
+#[derive(PartialEq, Eq, Clone)]
+pub enum Value {
+    String(String),
+    Numeric(NumericValue),
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum NumericValue {
+    Zero,
+    Px(u16),
+    Percentage(u16),
+}
+
 pub type Rulesets = Vec<Ruleset>;
 pub type Selectors = Vec<Selector>;
-pub type Declarations = HashMap<String, String>;
+pub type Declarations = HashMap<String, Value>;
 
 #[cfg(test)]
 mod tests {

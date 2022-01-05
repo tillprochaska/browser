@@ -58,17 +58,60 @@ impl Parser {
         return declarations;
     }
 
-    fn parse_declaration(&mut self) -> (String, String) {
-        let property = self.parser.consume_while(&|next_char| next_char != ':');
+    fn parse_declaration(&mut self) -> (String, cssom::Value) {
+        let property = self
+            .parser
+            .consume_while(&|next_char| next_char != ':')
+            .trim()
+            .to_owned();
 
         self.parser.consume_char();
         self.parser.consume_whitespace();
 
-        let value = self.parser.consume_while(&|next_char| next_char != ';');
+        let value = self.parse_value();
+
         assert!(self.parser.next_char() == ';');
         self.parser.consume_char();
 
-        return (property.trim().to_owned(), value.trim().to_owned());
+        return (property, value);
+    }
+
+    fn parse_value(&mut self) -> cssom::Value {
+        if self.parser.next_char().is_numeric() {
+            return cssom::Value::Numeric(self.parse_numeric_value());
+        }
+
+        return cssom::Value::String(self.parse_string_value());
+    }
+
+    fn parse_numeric_value(&mut self) -> cssom::NumericValue {
+        let number = self
+            .parser
+            .consume_while(&|next_char| next_char.is_numeric())
+            .parse()
+            .unwrap();
+
+        if number == 0 {
+            self.parser.consume_while(&|next_char| next_char != ';');
+
+            return cssom::NumericValue::Zero;
+        }
+
+        if self.parser.next_char() == '%' {
+            self.parser.consume_char();
+
+            return cssom::NumericValue::Percentage(number);
+        }
+
+        assert!(self.parser.starts_with("px"));
+        self.parser.consume_char();
+        self.parser.consume_char();
+
+        return cssom::NumericValue::Px(number);
+    }
+
+    fn parse_string_value(&mut self) -> String {
+        return self.parser.consume_while(&|next_char| next_char != ';');
     }
 
     fn parse_selectors(&mut self) -> cssom::Selectors {
@@ -161,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_parser_parse_rulesets() {
-        let mut parser = Parser::new("ul { padding-left: 1rem; } p { font-family: serif; }");
+        let mut parser = Parser::new("ul { padding-left: 10px; } p { font-family: serif; }");
         let rulesets = parser.parse_rulesets();
 
         assert!(rulesets.len() == 2);
@@ -172,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_parser_parse_ruleset() {
-        let mut parser = Parser::new("ul { padding-left: 1rem; list-style: square; }");
+        let mut parser = Parser::new("ul { padding-left: 10px; list-style: square; }");
         let ruleset = parser.parse_ruleset();
 
         assert!(ruleset.selectors == cssom::Selectors::from([cssom::Selector::new().tag("ul")]));
@@ -182,27 +225,45 @@ mod tests {
 
     #[test]
     fn test_parser_parse_declarations() {
-        let mut parser = Parser::new("ul { padding-left: 1rem; list-style: square; }");
+        let mut parser = Parser::new("ul { padding-left: 10px; list-style: square; }");
         parser.parser.set_pos(4);
         let declarations = parser.parse_declarations();
 
         assert!(declarations.len() == 2);
-        assert!(declarations["padding-left"] == "1rem");
-        assert!(declarations["list-style"] == "square");
+        assert!(declarations["padding-left"] == cssom::Value::Numeric(cssom::NumericValue::Px(10)));
+        assert!(declarations["list-style"] == cssom::Value::String("square".to_owned()));
     }
 
     #[test]
     fn test_parser_parse_declaration() {
-        let mut parser = Parser::new("padding-left: 1rem;");
+        let mut parser = Parser::new("padding-left: 10px;");
         let (property, value) = parser.parse_declaration();
 
         assert!(property == "padding-left");
-        assert!(value == "1rem");
+        assert!(value == cssom::Value::Numeric(cssom::NumericValue::Px(10)));
+    }
+
+    #[test]
+    fn test_parser_parse_value() {
+        assert!(Parser::new("0").parse_value() == cssom::Value::Numeric(cssom::NumericValue::Zero));
+        assert!(Parser::new("auto").parse_value() == cssom::Value::String("auto".to_owned()));
+    }
+
+    #[test]
+    fn test_parser_parse_numeric_value() {
+        assert!(Parser::new("0").parse_numeric_value() == cssom::NumericValue::Zero);
+        assert!(Parser::new("10px").parse_numeric_value() == cssom::NumericValue::Px(10));
+        assert!(Parser::new("50%").parse_numeric_value() == cssom::NumericValue::Percentage(50));
+    }
+
+    #[test]
+    fn test_parser_parse_string_value() {
+        assert!(Parser::new("auto").parse_string_value() == "auto");
     }
 
     #[test]
     fn test_parser_parse_selectors() {
-        let mut parser = Parser::new("ul, ol { padding-left: 1rem; }");
+        let mut parser = Parser::new("ul, ol { padding-left: 10px; }");
         let selectors = parser.parse_selectors();
 
         assert!(selectors.len() == 2);
@@ -220,13 +281,13 @@ mod tests {
 
     #[test]
     fn test_parser_parse_selector() {
-        let mut parser = Parser::new("ul, ol { padding-left: 1rem; }");
+        let mut parser = Parser::new("ul, ol { padding-left: 10px; }");
         let selector = parser.parse_selector();
 
         assert!(selector == cssom::Selector::new().tag("ul"));
 
         // Trims whitespace
-        let mut parser = Parser::new("ul { padding-left: 1rem; }");
+        let mut parser = Parser::new("ul { padding-left: 10px; }");
         let selector = parser.parse_selector();
 
         assert!(selector == cssom::Selector::new().tag("ul"));
