@@ -20,7 +20,9 @@ fn main() {
             <body>
                 <main>
                     <div class=\"first\"></div>
-                    <div class=\"second\"></div>
+                    <div class=\"second\">
+                        <div class=\"inner\"></div>
+                    </div>
                 </main>
             </body>
         </html>
@@ -40,6 +42,12 @@ fn main() {
             height: 200px;
             margin-top: 10px;
             background-color: #00f;
+        }
+
+        .inner {
+            width: 50%;
+            height: 50%;
+            background-color: #0f0;
         }
     ",
     );
